@@ -1,0 +1,22 @@
+{
+    "name": "rest-options-parser",
+    "version": "1.0.0",
+    "description": "This NodeJS module is a companion module for https://github.com/philidem/node-rest-handler that provides parsing and validation for routes that declare their options.",
+    "keywords": [
+        "options",
+        "rest-handler",
+        "arguments",
+        "validate",
+		"parse"
+    ],
+    "homepage": "https://github.com/philidem/rest-options-parser",
+    "author": "Phil Gates-Idem <phillip.idem@gmail.com",
+    "scripts": {
+        "test": "node_modules/.bin/mocha --ui bdd --reporter spec ./test"
+    },
+    "main": "./index.js",
+    "devDependencies": {
+        "mocha": "~1.15.1",
+        "chai": "~1.8.1"
+    }
+}
