@@ -4,6 +4,9 @@ var parallel = require('raptor-async/parallel');
 var extend = require('raptor-util/extend');
 
 var _types = require('./types');
+var _typeResolvers = [];
+
+var optionsParser = exports;
 
 function Options() {
 	
@@ -79,6 +82,17 @@ function _parseSource(option) {
 	return source;
 }
 
+function _resolveType(name) {
+	var coerce;
+	for (var i = 0; i < _typeResolvers.length; i++) {
+		coerce = _typeResolvers[i](name);
+		if (coerce != null) {
+			return coerce;
+		}
+	}
+	return null;
+}
+
 function _parseType(option) {
 	var type = option.type;
 	if (type) {
@@ -88,9 +102,17 @@ function _parseType(option) {
 		}
 		
 		if (type.length > 0) {
-			option.coerce = _types[type.toUpperCase()];
+			var normalizedName = type.toUpperCase();
+			option.coerce = _types[normalizedName];
 			if (!option.coerce) {
-				throw new Error('Invalid option type: ' + type);
+				option.coerce = _resolveType(type);
+				
+				if (!option.coerce) {
+					throw new Error('Invalid option type: ' + type);
+				}
+				
+				// we resolved the type
+				_types[normalizedName] = option.coerce;
 			}
 		} else {
 			type = undefined;
@@ -120,9 +142,9 @@ function _validationError(errors) {
         message += error.message;
         return message;
     }).join('. ');
-    
+	
     var err = new Error(message);
-    err.source = exports;
+    err.source = optionsParser;
     return err;
 }
 
@@ -167,7 +189,11 @@ function _validateValueForOption(value, option, options) {
 	}
 }
 
-exports.validateOptions = function(options, route, callback) {
+optionsParser.addTypeResolver = function(typeResolver) {
+	_typeResolvers.push(typeResolver);
+};
+
+optionsParser.validateOptions = function(options, route, callback) {
 	var declaredOptions = route._options;
 	if (!declaredOptions) {
 		return true;
@@ -194,7 +220,7 @@ exports.validateOptions = function(options, route, callback) {
 };
 
 // The before function will be invoked to handle each request
-exports.before = function(rest) {
+optionsParser.before = function(rest) {
 	var declaredOptions = rest.route._options;
 	if (!declaredOptions) {
 		// if the route doesn't have any declared options then nothing to do
@@ -235,11 +261,11 @@ exports.before = function(rest) {
 
 // The middleware will add hooks to initialize routes that have
 // options property
-exports.middleware = {
+optionsParser.middleware = {
 	init: function(restHandler) {
 		function initializeRoute(route) {
 			if (route.options) {
-				exports.initializeRoute(route);
+				optionsParser.initializeRoute(route);
 			}
 		}
 		
@@ -253,7 +279,7 @@ exports.middleware = {
 	}
 };
 
-exports.registerTypes = function(types) {
+optionsParser.registerTypes = function(types) {
 	extend(_types, types);
 	for (var typeName in types) {
 		if (types.hasOwnProperty(typeName)) {
@@ -262,7 +288,7 @@ exports.registerTypes = function(types) {
 	}
 };
 
-exports.initializeRoute = function(route) {
+optionsParser.initializeRoute = function(route) {
 	if (route._options !== undefined) {
 		return;
 	}
@@ -299,5 +325,5 @@ exports.initializeRoute = function(route) {
 		option.source = _parseSource(option);
 	}
 	
-	route.addBefore(exports.before);
+	route.addBefore(optionsParser.before);
 };
