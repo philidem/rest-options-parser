@@ -30,10 +30,23 @@ var Source = {
 	// Use this type if the value comes from the request body
 	BODY: function(option, options, rest) {
 		options.addJob(function(callback) {
-			rest.getParsedBody(function(err, value) {
+			rest.getBody(function(err, value) {
 				if (err) {
-					options.addError('Invalid request body', option, options);
+					options.addError('Error reading request body', option, options);
 				} else {
+					value = value.trim();
+					if (value.length > 0) {
+						try {
+							value = JSON.parse(value);
+						} catch(e) {
+							if (e) {
+								options.addError('Invalid JSON. ' + e, option, options);
+							}
+							return callback();
+						}
+					} else {
+						value = undefined;
+					}
 					_validateValueForOption(value, option, options);
 				}
 				callback();
