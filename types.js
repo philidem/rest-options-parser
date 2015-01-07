@@ -1,4 +1,8 @@
 module.exports = {
+	OBJECT: function(value, option, options) {
+		return value;
+	},
+	
 	BOOLEAN: function(value, option, options) {
 		if (value == null) {
 			return value;
@@ -45,5 +49,20 @@ module.exports = {
 		} else {
 			return value;
 		}
+	},
+	
+	INTEGER: function(value, options, options) {
+		if (value == null) {
+			return value;
+		}
+		
+		if (value.constructor === String) {
+			return parseInt(value, 10);
+		} else if (value.constructor !== Number) {
+			options.addError('Invalid integer: ' + value, option, options);
+		} else {
+			return value;
+		}
+		
 	}
 };

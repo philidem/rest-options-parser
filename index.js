@@ -76,6 +76,12 @@ var Source = {
 	OPTIONS: function(option, options, rest) {
 		var value = options[option.name];
 		_validateValueForOption(value, option, options);
+	},
+	
+	// Use this type if value came from other middleware
+	HEADER: function(option, options, rest) {
+		var value = rest.req.headers[option.header];
+		_validateValueForOption(value, option, options);
 	}
 };
 
@@ -90,6 +96,10 @@ function _parseSource(option) {
 	var source = Source[sourceName];
 	if (source === undefined) {
 		throw new Error('Invalid option source: ' + sourceName);
+	}
+	
+	if (source === Source.HEADER) {
+		option.header = (option.header || option.name).toLowerCase();
 	}
 	
 	return source;
