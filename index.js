@@ -8,6 +8,19 @@ var _typeResolvers = [];
 
 var optionsParser = exports;
 
+function _validationError(errors) {
+    var message = errors.map(function(error) {
+        var message = error.option.name + ': ';
+        
+        message += error.message;
+        return message;
+    }).join('. ');
+	
+    var err = new Error(message);
+    err.source = optionsParser;
+    return err;
+}
+
 function Options() {
 	
 }
@@ -18,6 +31,10 @@ Options.prototype.addJob = function(job) {
 	(this._work || (this._work = [])).push(job);
 };
 
+Options.prototype.hasWork = function() {
+	return (this._work !== undefined);
+};
+
 Options.prototype.addError = function(message, option, options) {
 	var errors = this.errors || (this.errors = []);
 	errors.push({
@@ -25,6 +42,28 @@ Options.prototype.addError = function(message, option, options) {
 		message: message
 	});
 };
+
+function _doWorkForOptions(options, callback) {
+	var work = options._work;
+	if (!work) {
+		return callback();
+	}
+	
+	parallel(work, function(err) {
+		// clear out the work
+		delete options._work;
+		
+		if (err) {
+			return callback(err);
+		}
+		
+		if (options.errors) {
+			return callback(_validationError(options.errors));
+		} else {
+			callback();
+		}
+	});
+}
 
 var Source = {
 	// Use this type if the value comes from the request body
@@ -158,19 +197,6 @@ function _makeArray(value) {
 	}
 }
 
-function _validationError(errors) {
-    var message = errors.map(function(error) {
-        var message = error.option.name + ': ';
-        
-        message += error.message;
-        return message;
-    }).join('. ');
-	
-    var err = new Error(message);
-    err.source = optionsParser;
-    return err;
-}
-
 function _validateValueForOption(value, option, options) {
 	if (value === undefined) {
 		if (option.default !== undefined) {
@@ -218,11 +244,12 @@ optionsParser.addTypeResolver = function(typeResolver) {
 
 optionsParser.validateOptions = function(options, route, callback) {
 	var declaredOptions = route._options;
-	if (!declaredOptions) {
-		return true;
+	if (declaredOptions) {
+		return callback();
 	}
 	
 	if (!options._isOption) {
+		// Add mixins from Options to make the given object compatible with Options
 		extend(options, Options.prototype);
 	}
 	
@@ -234,12 +261,10 @@ optionsParser.validateOptions = function(options, route, callback) {
 	}
 	
 	if (options.errors) {
-		var err = _validationError(options.errors);
-		callback(err);
-		return false;
+		return callback(_validationError(options.errors));
 	}
 	
-	return true;
+	_doWorkForOptions(options, callback);
 };
 
 // The before function will be invoked to handle each request
@@ -262,42 +287,27 @@ optionsParser.before = function(rest) {
 		return rest.error(_validationError(options.errors));
 	}
 	
-	var work = options._work;
-	if (work === undefined) {
-		rest.next();
-	} else {
-		parallel(work, function(err) {
-			delete options._work;
-			
-			if (err) {
-				return rest.error(err);
-			}
-			
-			if (options.errors) {
-				rest.error(_validationError(options.errors));
-			} else {
-				rest.next();
-			}
-		});
-	}
+	_doWorkForOptions(options, function(err) {
+		if (err) {
+			rest.error();
+		} else {
+			rest.next();
+		}
+	});
 };
 
 // The middleware will add hooks to initialize routes that have
 // options property
 optionsParser.middleware = {
 	init: function(restHandler) {
-		function initializeRoute(route) {
-			if (route.options) {
-				optionsParser.initializeRoute(route);
-			}
-		}
-		
 		// initialize existing routes
-		restHandler.getAllRoutes().forEach(initializeRoute);
+		restHandler.getAllRoutes().forEach(function initializeRoute(route) {
+			optionsParser.initializeRoute(route);
+		});
 		
 		// initialize routes that are added later
 		restHandler.on('route', function(event) {
-			initializeRoute(event.route);
+			optionsParser.initializeRoute(event.route);
 		});
 	}
 };
@@ -313,10 +323,16 @@ optionsParser.registerTypes = function(types) {
 
 optionsParser.initializeRoute = function(route) {
 	if (route._options !== undefined) {
+		// this route already has options that have been initialized
 		return;
 	}
 	
 	var declaredOptionsByName = route.options;
+	if (!declaredOptionsByName) {
+		// nothing to do if this route does not have options
+		return;
+	}
+	
 	var optionNames;
 	
 	route.getPlaceholders().forEach(function(optionName) {
