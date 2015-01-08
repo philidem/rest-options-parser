@@ -289,7 +289,7 @@ optionsParser.before = function(rest) {
 	
 	_doWorkForOptions(options, function(err) {
 		if (err) {
-			rest.error();
+			rest.error(err);
 		} else {
 			rest.next();
 		}
