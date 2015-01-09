@@ -244,7 +244,7 @@ optionsParser.addTypeResolver = function(typeResolver) {
 
 optionsParser.validateOptions = function(options, route, callback) {
 	var declaredOptions = route._options;
-	if (declaredOptions) {
+	if (!declaredOptions) {
 		return callback();
 	}
 	
@@ -322,7 +322,7 @@ optionsParser.registerTypes = function(types) {
 };
 
 optionsParser.initializeRoute = function(route) {
-	if (route._options !== undefined) {
+	if (route._options) {
 		// this route already has options that have been initialized
 		return;
 	}
