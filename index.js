@@ -356,16 +356,19 @@ optionsParser.initializeRoute = function(route) {
 	
 	for (var i = 0; i < optionNames.length; i++) {
 		var optionName = optionNames[i];
-		var option = declaredOptions[i] = extend({}, declaredOptionsByName[optionName]);
-		
-		option.name = optionName;
-		option.property = option.property || optionName;
-		option.type = _parseType(option);
-		option.source = _parseSource(option);
-        
-        if (option.source === Source.PARAMS) {
-            if (option.required === undefined) {
-                option.required = true;
+        var declaredOption = declaredOptionsByName[optionName];
+        if (declaredOption) {
+    		var option = declaredOptions[i] = extend({}, declaredOption);
+    		
+    		option.name = optionName;
+    		option.property = option.property || optionName;
+    		option.type = _parseType(option);
+    		option.source = _parseSource(option);
+            
+            if (option.source === Source.PARAMS) {
+                if (option.required === undefined) {
+                    option.required = true;
+                }
             }
         }
 	}

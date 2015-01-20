@@ -1,6 +1,6 @@
 {
     "name": "rest-options-parser",
-    "version": "1.0.8",
+    "version": "1.0.9",
     "description": "This NodeJS module is a companion module for https://github.com/philidem/node-rest-handler that provides parsing and validation for routes that declare their options.",
     "keywords": [
         "options",
