@@ -362,6 +362,12 @@ optionsParser.initializeRoute = function(route) {
 		option.property = option.property || optionName;
 		option.type = _parseType(option);
 		option.source = _parseSource(option);
+        
+        if (option.source === Source.PARAMS) {
+            if (option.required === undefined) {
+                option.required = true;
+            }
+        }
 	}
 	
 	route.addBefore(optionsParser.before);

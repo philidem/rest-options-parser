@@ -51,7 +51,7 @@ module.exports = {
 		}
 	},
 	
-	INTEGER: function(value, options, options) {
+	INTEGER: function(value, option, options) {
 		if (value == null) {
 			return value;
 		}
