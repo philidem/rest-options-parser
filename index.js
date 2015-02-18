@@ -51,17 +51,20 @@ var Source = {
 				if (err) {
 					options.addError('Error reading request body', option);
 				} else {
-					value = value.trim();
-					if (value.length > 0) {
-						try {
-							value = JSON.parse(value);
-						} catch(e) {
-							options.addError('Invalid JSON. ' + e, option);
-							return callback();
-						}
-					} else {
-						value = undefined;
-					}
+                    if (option.type !== 'string') {
+                        value = value.trim();
+    					if (value.length > 0) {
+    						try {
+    							value = JSON.parse(value);
+    						} catch(e) {
+    							options.addError('Invalid JSON. ' + e, option);
+    							return callback();
+    						}
+    					} else {
+    						value = undefined;
+    					}
+                    }
+
                     options[option.property] = value;
 				}
 				callback();
