@@ -45,68 +45,102 @@ Options.prototype.addError = function(message, option) {
 
 var Source = {
 	// Use this type if the value comes from the request body
-	BODY: function(option, options, rest) {
-		options.addJob(function(callback) {
-			rest.getBody(function(err, value) {
-				if (err) {
-					options.addError('Error reading request body', option);
-				} else {
-                    if (option.type !== 'string') {
-                        value = value.trim();
-    					if (value.length > 0) {
-    						try {
-    							value = JSON.parse(value);
-    						} catch(e) {
-    							options.addError('Invalid JSON. ' + e, option);
-    							return callback();
-    						}
-    					} else {
-    						value = undefined;
-    					}
+	BODY: {
+        read: function(option, options, rest) {
+    		options.addJob(function(callback) {
+                rest.getParsedBody(function(err, body) {
+                    if (err) {
+                        options.addError('Error parsing request body: ' + err, option);
+                    } else {
+                        options[option.targetProperty] = body;
                     }
-
-                    options[option.property] = value;
-				}
-				callback();
-			});
-		});
-	},
+                    callback();
+                });
+    		});
+    	}
+    },
 
 	// Use this type if the value comes from the request URL query string
-	QUERY: function(option, options, rest) {
-		var value = rest.url.query ? rest.url.query[option.name] : undefined;
-        options[option.property] = value;
-	},
+	QUERY: {
+        read: function(option, options, rest) {
+    		var value = rest.url.query ? rest.url.query[option.property] : undefined;
+            options[option.targetProperty] = value;
+    	}
+    },
 
 	// Use this type if value comes from the request path
-	PATH: function(option, options, rest) {
-		var value = rest.params ? rest.params[option.name] : undefined;
-		options[option.property] = value;
-	},
+	PATH: {
+        read: function(option, options, rest) {
+    		var value = rest.params ? rest.params[option.property] : undefined;
+    		options[option.targetProperty] = value;
+    	}
+    },
 
 	// Use this type if value came from other middleware
-	REST: function(option, options, rest) {
-		var value = rest[option.name];
-		options[option.property] = value;
-	},
+	REST: {
+        read: function(option, options, rest) {
+    		var value = rest[option.property];
+    		options[option.targetProperty] = value;
+    	}
+    },
 
 	// Use this type if value came from other middleware
-	OPTIONS: function(option, options, rest) {
-		var value = options[option.name];
-		options[option.property] = value;
-	},
+	OPTIONS: {
+        read: function(option, options, rest) {
+    		var value = options[option.property];
+    		options[option.targetProperty] = value;
+    	}
+    },
 
 	// Use this type if value came from other middleware
-	HEADER: function(option, options, rest) {
-		var value = rest.req.headers[option.header];
-		options[option.property] = value;
-	}
+	HEADER: {
+        init: function(option) {
+            option.header = option.header || option.property;
+        },
+
+        read: function(option, options, rest) {
+    		var value = rest.req.headers[option.header];
+    		options[option.targetProperty] = value;
+    	}
+    },
+
+    // Use this type to read properties of the connection
+	CONNECTION: {
+        read: function(option, options, rest) {
+    		var value = rest.req.connection[option.property];
+    		options[option.targetProperty] = value;
+    	}
+    },
+
+    // Use this type to read properties of the connection
+	URL: {
+        read: function(option, options, rest) {
+    		var value = rest.url[option.property];
+    		options[option.targetProperty] = value;
+    	}
+    },
+
+    // Use this type to read properties of the connection
+	REQUEST: {
+        read: function(option, options, rest) {
+    		var value = rest.req[option.property];
+    		options[option.targetProperty] = value;
+    	}
+    },
+
+    // Use this type to read properties of the connection
+	RESPONSE: {
+        read: function(option, options, rest) {
+    		var value = rest.res[option.property];
+    		options[option.targetProperty] = value;
+    	}
+    }
 };
 
 function _parseSource(option) {
 	var sourceName = option.source;
 	if (sourceName == null) {
-		// params is the default source
+		// path placeholder values is the default source
 		return Source.PATH;
 	}
 
@@ -114,10 +148,6 @@ function _parseSource(option) {
 	var source = Source[sourceName];
 	if (source === undefined) {
 		throw new Error('Invalid option source: ' + sourceName);
-	}
-
-	if (source === Source.HEADER) {
-		option.header = (option.header || option.name).toLowerCase();
 	}
 
 	return source;
@@ -177,14 +207,14 @@ function _makeArray(value) {
 }
 
 function _parseValueForOption(option, inputOptions, outputOptions) {
-    var propertyName = option.property;
+    var propertyName = option.targetProperty;
     var value = inputOptions[propertyName];
 
 	if (value === undefined) {
         // No value provided
         // See if we should try to find property by alternate name...
         // If we don't find value by alternate name then we're done looking for a value
-        if (!option.propertyNotName || ((value = inputOptions[option.name]) === undefined)) {
+        if (!option._targetPropertyNotName || ((value = inputOptions[option.name]) === undefined)) {
             if ((outputOptions[propertyName] = option.default) !== undefined) {
     			// found a value
     		} else if (option.required) {
@@ -282,12 +312,15 @@ function _before(rest) {
 
 	var options = rest.options = new Options();
 
+    options.rest = rest;
+
     // Read in the options from the "rest" object
 	var i = declaredOptions.length;
 	while(--i >= 0) {
 		var option = declaredOptions[i];
-		var source = option.source;
-		source(option, options, rest);
+        if (option.read) {
+            option.read(option, options, rest);
+        }
 	}
 
 	if (options.errors) {
@@ -396,12 +429,36 @@ optionsParser.initializeRoute = function(route) {
         var declaredOption = declaredOptionsByName[optionName];
         if (declaredOption) {
     		var option = extend({}, declaredOption);
+            var source = _parseSource(option);
 
+            // This the name of property when providing value via options.
+            // If "targetProperty" is provided then the value will automatically be
+            // copied to the given "targetProperty".
+            // The "name" is how the caller provides a value via options.
+            // The "targetProperty" is how the callee retrieves a value via options.
     		option.name = optionName;
-            option.propertyNotName = (option.property !== optionName);
-    		option.property = option.property || optionName;
+
+            // this is the name of property that should be used when reading from source object
+            option.property = option.property || option.name;
+
+            // The destination property within the "options" object after reading value
+            option.targetProperty = option.targetProperty || optionName;
+
+            // A simple flag to know if the incoming property name doesn't
+            // match the target property name
+            option._targetPropertyNotName = (option.targetProperty !== optionName);
+
     		option.type = _parseType(option);
-    		option.source = _parseSource(option);
+
+            if (source) {
+                if (!option.read) {
+                    option.read = source.read;
+                }
+
+                if (source.init) {
+                    source.init(option);
+                }
+            }
 
             declaredOptions.push(option);
         }
