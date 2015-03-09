@@ -237,7 +237,7 @@ function _parseValueForOption(option, inputOptions, outputOptions) {
             }
 
             while(--j >= 0) {
-                value[j] = coerce(value[j], inputOptions);
+                value[j] = coerce.call(outputOptions, value[j], inputOptions);
             }
         } else {
             value = coerce.call(outputOptions, value, option, inputOptions);
