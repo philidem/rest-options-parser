@@ -48,14 +48,35 @@ var Source = {
 	BODY: {
         read: function(option, options, rest) {
     		options.addJob(function(callback) {
-                rest.getParsedBody(function(err, body) {
-                    if (err) {
-                        options.addError('Error parsing request body: ' + err, option);
-                    } else {
-                        options[option.targetProperty] = body;
-                    }
-                    callback();
-                });
+                if (option.coerce === _types.STRING) {
+                    rest.getBody(function(err, body) {
+                        if (err) {
+                            options.addError('Error parsing request body: ' + err, option);
+                        } else {
+                            options[option.targetProperty] = body;
+                        }
+                        callback();
+                    });
+                } else if (option.coerce === _types.BUFFER) {
+                    rest.getBodyBuffer(function(err, body) {
+                        if (err) {
+                            options.addError('Error parsing request body: ' + err, option);
+                        } else {
+                            options[option.targetProperty] = body;
+                        }
+                        callback();
+                    });
+                } else {
+                    rest.getParsedBody(function(err, body) {
+                        if (err) {
+                            options.addError('Error parsing request body: ' + err, option);
+                        } else {
+                            options[option.targetProperty] = body;
+                        }
+                        callback();
+                    });
+                }
+
     		});
     	}
     },

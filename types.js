@@ -3,6 +3,18 @@ module.exports = {
 		return value;
 	},
 
+	BUFFER: function(value, option, options) {
+		if (value == null) {
+			return value;
+		}
+
+		if (value.constructor === Buffer) {
+			return value;
+		}
+		
+		return new Buffer(value, 'utf8');
+	},
+
 	BOOLEAN: function(value, option, options) {
 		if (value == null) {
 			return value;

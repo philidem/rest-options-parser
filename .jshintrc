@@ -6,7 +6,8 @@
         "__dirname": true,
         "require": true,
         "module": true,
-        "exports": true
+        "exports": true,
+        "Buffer": true
     },
     "strict": false,
     "globalstrict": true,
