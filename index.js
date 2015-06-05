@@ -45,38 +45,25 @@ Options.prototype.addError = function(message, option) {
 
 var Source = {
 	// Use this type if the value comes from the request body
-	BODY: {
+    BODY: {
         read: function(option, options, rest) {
     		options.addJob(function(callback) {
-                if (option.coerce === _types.STRING) {
-                    rest.getBody(function(err, body) {
-                        if (err) {
-                            options.addError('Error parsing request body: ' + err, option);
-                        } else {
-                            options[option.targetProperty] = body;
-                        }
-                        callback();
-                    });
-                } else if (option.coerce === _types.BUFFER) {
-                    rest.getBodyBuffer(function(err, body) {
-                        if (err) {
-                            options.addError('Error parsing request body: ' + err, option);
-                        } else {
-                            options[option.targetProperty] = body;
-                        }
-                        callback();
-                    });
-                } else {
-                    rest.getParsedBody(function(err, body) {
-                        if (err) {
-                            options.addError('Error parsing request body: ' + err, option);
-                        } else {
-                            options[option.targetProperty] = body;
-                        }
-                        callback();
-                    });
-                }
+                var onResult = function(err, body) {
+                    if (err) {
+                        options.addError('Error parsing request body: ' + err, option);
+                    } else {
+                        options[option.targetProperty] = body;
+                    }
+                    callback();
+                };
 
+                if (option.coerce === _types.STRING) {
+                    rest.getBody(onResult, option.limit);
+                } else if (option.coerce === _types.BUFFER) {
+                    rest.getBodyBuffer(onResult, option.limit);
+                } else {
+                    rest.getParsedBody(onResult, options.limit);
+                }
     		});
     	}
     },
