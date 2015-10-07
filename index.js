@@ -142,6 +142,14 @@ var Source = {
             var value = rest.res[option.property];
             options[option.targetProperty] = value;
         }
+    },
+
+    // Use this type to read properties of the connection
+    COOKIE: {
+        read: function(option, options, rest) {
+            var value = rest.getCookie(option.cookie);
+            options[option.targetProperty] = value;
+        }
     }
 };
 
